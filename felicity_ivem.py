@@ -10,6 +10,8 @@ from pymodbus.constants import Endian
 from pymodbus.payload import BinaryPayloadDecoder
 import logging
 import time
+import argparse
+import paho.mqtt.client as mqtt
 
 PORT_NAME = "/dev/ttyUSB0"  # Change this to your serial port
 
@@ -46,6 +48,7 @@ class Inverter:
 
     def __init__(self, client):
         self.client = client
+        self.last_values = {}
 
     def connect(self):
         return self.client.connect()
@@ -92,6 +95,8 @@ class Inverter:
                 # normalize the value
                 nval = self.normalize_register(name, val)
                 if nval is not None:
+                    # Store the last value
+                    self.last_values[name] = nval
                     return nval
                 else:
                     log.error(f"Error normalizing register {name}")
@@ -108,11 +113,21 @@ class Inverter:
     def normalize_register(self, register, value):
         if register in self.register_map:
             if register == "battery_voltage":
-                return value * 0.01
+                value = value * 0.01
+                value = round(value, 2)
+                return value
             elif register == "ac_input_voltage":
-                return value * 0.1
+                value = value * 0.1
+                value = round(value, 2)
+                return value
             elif register == "ac_frequency":
-                return value * 0.01
+                value = value * 0.01
+                value = round(value, 2)
+                return value
+            elif register == "pv_input_voltage":
+                value = value * 0.1
+                value = round(value, 2)
+                return value
             elif register == "work_mode":
                 modes = {
                     0: "PowerOnMode",
@@ -214,35 +229,94 @@ class Inverter:
         # Calculate estimated runtime (to 20% of battery)
         estimated_runtime = (current_percentage - 20) * elapsed_time
         print(f"Estimated runtime: {self.human_time(estimated_runtime)}")
+        # Calculate battery pack capacity in Kwh
+        battery_capacity = (average_power * -1) * 100 / (3600 / elapsed_time) / 1000
+        print(f"Battery capacity: {battery_capacity} KWh")
+
         return estimated_runtime
 
 
+def mqtt_publoop(args, inverter):
+    """Publish data to MQTT server"""
+    mclient = mqtt.Client()
+    mclient.connect(args.mqttserver, 1883, 60)
+    while True:
+        all_registers = inverter.read_all_registers()
+        if all_registers is not None:
+            for name, value in all_registers.items():
+                log.info(f"{name}: {value}")
+                mclient.publish(f"{args.mqttprefix}/{name}", value)
+        else:
+            log.error("Failed to read all registers")
+        rc = mclient.loop(timeout=1)
+        if rc != 0:
+            log.error(f"MQTT error: {rc}")
+        time.sleep(10)
+
+
 def main():
+    parser = argparse.ArgumentParser(
+        description="Read data from Felicity IVEM inverter"
+    )
+    parser.add_argument(
+        "--estimate",
+        action="store_true",
+        help="Estimate battery runtime and capacity",
+    )
+    parser.add_argument(
+        "--printall",
+        action="store_true",
+        help="Print all registers",
+    )
+    parser.add_argument(
+        "--scanunknown",
+        action="store_true",
+        help="Scan unknown registers from 0x1100 to 0x112F",
+    )
+    parser.add_argument(
+        "--mqttserver",
+        help="Enable MQTT publishing",
+    )
+    parser.add_argument(
+        "--mqttprefix",
+        default="felicity",
+        help="MQTT topic prefix (default: felicity)",
+    )
+    args = parser.parse_args()
     inverter = Inverter(client)
     if inverter.connect():
         log.info("Connected to inverter")
-        estimate_battery_runtime = inverter.estimate_battery_runtime()
-        if estimate_battery_runtime is not None:
-            log.info(f"Estimated battery runtime: {estimate_battery_runtime}")
-        else:
-            log.error("Failed to estimate battery runtime")
-        try:
-            # Read all registers
+        if args.estimate:
+            estimate_battery_runtime = inverter.estimate_battery_runtime()
+            if estimate_battery_runtime is not None:
+                log.info(f"Estimated battery runtime: {estimate_battery_runtime}")
+            else:
+                log.error("Failed to estimate battery runtime")
+        if args.printall:
             all_registers = inverter.read_all_registers()
             for name, value in all_registers.items():
                 log.info(f"{name}: {value}")
-            # scan from 0x1100 to 0x112F
-            # for i in range(0x112F, 0x11FF):
-            #    result = inverter.read_holding_registers(i, 1)
-            #    if not result.isError():
-            #        val = inverter.client.convert_from_registers(result.registers, inverter.client.DATATYPE.UINT16)
-            #        log.info(f"Register {hex(i)}: {val} {hex(val)}")
-            #    else:
-            #        log.error(f"Error reading register {i}: {result}")
-        except Exception as e:
-            log.error(f"Error reading registers: {e}")
-        finally:
-            inverter.close()
+        if args.scanunknown:
+            log.info("Scanning unknown registers from 0x1100 to 0x112F")
+            try:
+                # scan from 0x1100 to 0x112F
+                for i in range(0x1100, 0x112F + 1):
+                    result = inverter.read_holding_registers(i, 1)
+                    if not result.isError():
+                        val = inverter.client.convert_from_registers(
+                            result.registers, inverter.client.DATATYPE.UINT16
+                        )
+                        log.info(f"Register {hex(i)}: {val} {hex(val)}")
+                    else:
+                        log.error(f"Error reading register {i}: {result}")
+            except Exception as e:
+                log.error(f"Error reading registers: {e}")
+        if args.mqttserver:
+            # fork to run in background TODO
+            log.info("Starting MQTT client")
+            log.info(f"Connecting to MQTT server {args.mqttserver}")
+            mqtt_publoop(args, inverter)
+        inverter.close()
     else:
         log.error("Failed to connect to inverter")
 
