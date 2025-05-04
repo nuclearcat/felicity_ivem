@@ -46,6 +46,40 @@ class Inverter:
         "battery_percentage": 0x1132,
     }
 
+    """
+    WIP:
+
+    output_source_priority: 0x212A ?????
+    power priority: Utility First 
+    1=PV priority Solar Frist 
+    2=PV battery main power Solar Bat Utility
+
+    application_mode: 0x212B
+    0=APL
+    1=UPS
+
+    charging_source_priority: 0x212C
+    1=PV priority Solar Frist
+    2=PV and mains priority (SolarandUtility first)
+    3=PV solar only
+
+    Figure out battery voltages, how it is align with LiFePo4
+    """
+
+    wregister_map = {
+        "ac_output_frequency": 0x2129,
+        "output_source_priority": 0x212A,
+        "application_mode": 0x212B,
+        "charging_source_priority": 0x212C,
+        "max_charging_current": 0x212E,
+        "max_ac_charging_current": 0x212F,
+        "buzzer_enabled": 0x2131,
+        "overload_restart": 0x2133,
+        "overtemperature_restart": 0x2134,
+        "lcd_backlight": 0x2135,
+        "overload_to_bypass": 0x2137,
+    }
+
     def __init__(self, client):
         self.client = client
         self.last_values = {}
@@ -72,6 +106,15 @@ class Inverter:
                     f"Error reading register {address}: {result}, retrying {i+1}/3"
                 )
         return None
+
+    def write_register(self, address, value):
+        """Write a 2-byte value to a register"""
+        result = self.client.write_register(address, value)
+        if not result.isError():
+            return True
+        else:
+            log.error(f"Error writing register {address}: {result}")
+            return False
 
     def read_register(self, name):
         # print(f"Reading register: {name}")
