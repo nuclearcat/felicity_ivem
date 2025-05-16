@@ -12,6 +12,14 @@ Felicity IVEM is a Python client for the Felicity IVEM 5048/3024 inverter. It al
 - MQTT support, compatible with Home Assistant
 - Control inverter settings (TODO)
 
+## Installation
+
+Install the required dependencies using `pip`:
+
+```bash
+pip install -r requirements.txt
+```
+
 ## Example data
 
 ```
