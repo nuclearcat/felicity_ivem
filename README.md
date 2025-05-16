@@ -40,3 +40,13 @@ INFO:root:pv_input_voltage: 340.0
 INFO:root:pv_input_power: 231
 INFO:root:battery_percentage: 50
 ```
+
+## Enumerations
+
+`felicity_ivem.py` defines two enums used when decoding register values:
+
+- `WorkMode` describes the inverter operating mode.
+- `ChargingState` describes the current charging stage.
+
+The names printed in the example data above correspond to members of these
+enums.

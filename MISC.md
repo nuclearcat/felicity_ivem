@@ -44,5 +44,8 @@ Decoding(normalizing) the registers:
     5: "LineMode",
     6: "PVChargeMode"
 
+These values are available programmatically as the `WorkMode` and
+`ChargingState` enums in `felicity_ivem.py`.
+
 # model
 # 0xF801 - 0x0408 - 5048 (5000VA/48V) 0x0204 - 3024 (3000VA/24V)

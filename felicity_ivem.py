@@ -3,11 +3,15 @@
 This script reads data from a Modbus RTU inverter using the pymodbus library.
 Compatible with Felicity IVEM5048(tested) and IVEM3024 (untested).
 Potentially compatible with some Voltronic Axpert inverters.
+
+Work modes and charging states are represented by the ``WorkMode`` and
+``ChargingState`` enums defined in this file.
 """
 
 from pymodbus.client.serial import ModbusSerialClient
 from pymodbus.constants import Endian
 from pymodbus.payload import BinaryPayloadDecoder
+from enum import Enum
 import logging
 import time
 import argparse
@@ -19,6 +23,23 @@ PORT_NAME = "/dev/ttyUSB0"  # Change this to your serial port
 logging.basicConfig()
 log = logging.getLogger()
 log.setLevel(logging.INFO)
+
+# Enum representations of inverter states
+class WorkMode(Enum):
+    PowerOnMode = 0
+    StandbyMode = 1
+    BypassMode = 2
+    BatteryMode = 3
+    FaultMode = 4
+    LineMode = 5
+    PVChargeMode = 6
+
+
+class ChargingState(Enum):
+    NoCharge = 0
+    ConstantCurrent = 1
+    ConstantVoltage = 2
+    Float = 3
 
 # Modbus RTU client configuration
 client = ModbusSerialClient(
@@ -172,24 +193,15 @@ class Inverter:
                 value = round(value, 2)
                 return value
             elif register == "work_mode":
-                modes = {
-                    0: "PowerOnMode",
-                    1: "StandbyMode",
-                    2: "BypassMode",
-                    3: "BatteryMode",
-                    4: "FaultMode",
-                    5: "LineMode",
-                    6: "PVChargeMode",
-                }
-                return modes.get(value, "Unknown")
+                try:
+                    return WorkMode(value).name
+                except ValueError:
+                    return "Unknown"
             elif register == "charging_state":
-                states = {
-                    0: "NoCharge",
-                    1: "ConstantCurrent",
-                    2: "ConstantVoltage",
-                    3: "Float",
-                }
-                return states.get(value, "Unknown")
+                try:
+                    return ChargingState(value).name
+                except ValueError:
+                    return "Unknown"
             elif register == "model":
                 models = {
                     0x0408: "IVEM5048(5000VA/48V)",
