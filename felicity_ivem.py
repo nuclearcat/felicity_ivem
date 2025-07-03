@@ -119,7 +119,12 @@ class Inverter:
     def read_register_raw(self, address):
         """Retry on failure 3 times"""
         for i in range(3):
-            result = self.client.read_holding_registers(address=address)
+            try:
+                result = self.client.read_holding_registers(address=address)
+            except Exception as e:
+                log.error(f"Error reading register {address}: {e}, retrying {i+1}/3")
+                time.sleep(1)
+                continue
             if not result.isError():
                 return result
             else:
