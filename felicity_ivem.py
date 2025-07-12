@@ -311,6 +311,7 @@ def mqtt_publoop(args, inverter):
         rc = mclient.loop(timeout=1)
         if rc != 0:
             log.error(f"MQTT error: {rc}")
+            mclient.reconnect()
         time.sleep(10)
 
 
