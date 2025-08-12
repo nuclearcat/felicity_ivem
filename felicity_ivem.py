@@ -190,6 +190,10 @@ class Inverter:
                 value = value * 0.1
                 value = round(value, 2)
                 return value
+            elif register == "ac_output_voltage":
+                value = value * 0.1
+                value = round(value, 2)
+                return value
             elif register == "ac_frequency":
                 value = value * 0.01
                 value = round(value, 2)
