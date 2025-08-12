@@ -57,7 +57,7 @@ class Inverter:
         "battery_voltage": 0x1108,
         "battery_current": 0x1109,
         "battery_power": 0x110A,
-        "ac_input_voltage": 0x1107,
+        "ac_input_voltage": 0x1117,
         "ac_frequency": 0x1119,
         "ac_output_power": 0x111E,
         "ac_output_apparent_power": 0x111F,
