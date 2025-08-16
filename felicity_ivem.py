@@ -300,6 +300,14 @@ class Inverter:
 
         return estimated_runtime
 
+def reconnect_loop(mclient):
+    """Reconnect to MQTT server"""
+    while True:
+        try:
+            mclient.reconnect()
+        except Exception as e:
+            log.error(f"Failed to reconnect: {e}")
+        time.sleep(10)
 
 def mqtt_publoop(args, inverter):
     """Publish data to MQTT server"""
@@ -316,7 +324,7 @@ def mqtt_publoop(args, inverter):
         rc = mclient.loop(timeout=1)
         if rc != 0:
             log.error(f"MQTT error: {rc}")
-            mclient.reconnect()
+            reconnect_loop(mclient)
         time.sleep(10)
 
 
