@@ -307,7 +307,8 @@ def reconnect_loop(mclient):
             mclient.reconnect()
         except Exception as e:
             log.error(f"Failed to reconnect: {e}")
-        time.sleep(10)
+            time.sleep(10)
+        break
 
 def mqtt_publoop(args, inverter):
     """Publish data to MQTT server"""
