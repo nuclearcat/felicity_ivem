@@ -308,6 +308,7 @@ def reconnect_loop(mclient):
         except Exception as e:
             log.error(f"Failed to reconnect: {e}")
             time.sleep(10)
+            continue
         break
 
 def mqtt_publoop(args, inverter):
@@ -357,7 +358,14 @@ def main():
         default="felicity",
         help="MQTT topic prefix (default: felicity)",
     )
+    parser.add_argument(
+        "--silent",
+        action="store_true",
+        help="Suppress informational logs; only warnings and errors are emitted",
+    )
     args = parser.parse_args()
+    if args.silent:
+        log.setLevel(logging.WARNING)
     inverter = Inverter(client)
     if inverter.connect():
         log.info("Connected to inverter")
